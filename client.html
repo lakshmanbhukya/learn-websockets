@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket Chat with Files</title>
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <style>
+      body {
+        font-family: sans-serif;
+        max-width: 600px;
+        margin: auto;
+      }
+      #chat {
+        border: 1px solid #ccc;
+        padding: 10px;
+        height: 300px;
+        overflow-y: scroll;
+      }
+      input,
+      button {
+        margin: 5px;
+      }
+    </style>
+  </head>
+  <body>
+    <h2>Join a Chat Room</h2>
+    <input id="username" placeholder="Your Name" />
+    <input id="room" placeholder="Room Number" />
+    <button onclick="joinRoom()">Join</button>
+
+    <div id="chat-section" style="display: none">
+      <div id="chat"></div>
+      <input id="message" placeholder="Type message" />
+      <button onclick="sendMessage()">Send</button>
+      <br /><br />
+      <input type="file" id="fileInput" />
+      <button onclick="uploadFile()">Upload</button>
+    </div>
+
+    <script>
+      const socket = io("http://localhost:5000");
+      let username = "";
+      let room = "";
+
+      function joinRoom() {
+        username = document.getElementById("username").value;
+        room = document.getElementById("room").value;
+        if (!username || !room) return alert("Enter both fields!");
+        socket.emit("join_room", { username, room });
+        document.getElementById("chat-section").style.display = "block";
+      }
+
+      function sendMessage() {
+        const message = document.getElementById("message").value;
+        if (!message) return;
+        socket.emit("send_message", { room, username, text: message });
+        document.getElementById("message").value = "";
+      }
+
+      socket.on("receive_message", (data) => {
+        const chat = document.getElementById("chat");
+        chat.innerHTML += `<p><b>${data.username}:</b> ${
+          data.text ||
+          `<a href="${data.fileUrl}" target="_blank">${data.fileName}</a>`
+        }</p>`;
+        chat.scrollTop = chat.scrollHeight;
+      });
+
+      function uploadFile() {
+        const file = document.getElementById("fileInput").files[0];
+        if (!file) return alert("Select a file first!");
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("room", room);
+        formData.append("username", username);
+
+        fetch("http://localhost:5000/upload", {
+          method: "POST",
+          body: formData,
+        })
+          .then((res) => res.json())
+          .then((data) => console.log("Uploaded:", data))
+          .catch((err) => console.error(err));
+      }
+    </script>
+  </body>
+</html>
